@@ -19,7 +19,6 @@ extern "C"
 }
 
 #include "logging.hpp"
-#include "mutual_tls_meta.hpp"
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ssl/verify_context.hpp>
@@ -69,18 +68,6 @@ std::string getUPNFromCert(X509* peerCert) {
     return upn;
 }
 
-std::string getMetaUserNameFromCert(X509* cert) {
-    // Meta Inc. CommonName parsing
-    std::string commonName = getCommonNameFromCert(cert);
-    std::optional<std::string> sslUserMeta =
-        mtlsMetaParseSslUser(commonName);
-    if (!sslUserMeta)
-    {
-        return "";
-    }
-    return std::string{*sslUserMeta};
-}
-
 std::string getUsernameFromCert(X509* cert)
 {
     const persistent_data::AuthConfigMethods& authMethodsConfig =
@@ -96,24 +83,12 @@ std::string getUsernameFromCert(X509* cert)
         case persistent_data::MTLSCommonNameParseMode::UserPrincipalName:
         {
             std::string upn = getUPNFromCert(cert);
-            if (upn.empty()) {
-                // Fallback to Meta Inc. CommonName parsing
-                BMCWEB_LOG_INFO("Failed to get user from UPN, falling back to Meta Inc. CommonName parsing");
-                std::string metaUser = getMetaUserNameFromCert(cert);
-                return metaUser;
-            }
-
             return upn;
         }
         case persistent_data::MTLSCommonNameParseMode::CommonName:
         {
             std::string commonName = getCommonNameFromCert(cert);
             return std::string{commonName};
-        }
-        case persistent_data::MTLSCommonNameParseMode::Meta:
-        {
-            std::string metaUser = getMetaUserNameFromCert(cert);
-            return metaUser;
         }
         default:
         {
